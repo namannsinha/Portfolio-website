@@ -60,7 +60,7 @@ jobs:
           solved["all"] = solved.get("all", sum(solved.get(k, 0) for k in ("easy", "medium", "hard")))
           raw_calendar = (user.get("userCalendar") or {}).get("submissionCalendar") or "{}"
           calendar = json.loads(raw_calendar) if isinstance(raw_calendar, str) else raw_calendar
-          cutoff = int((datetime.now(timezone.utc) - timedelta(days=92)).timestamp())
+          cutoff = int((datetime.now(timezone.utc) - timedelta(days=152)).timestamp())
           activity = {}
           for timestamp, count in calendar.items():
               try:
