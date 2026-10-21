@@ -17,7 +17,7 @@
       "hard": "Spotting corrupted files, duplicates, blur and low-resolution images, then quarantining them without destroying anything. On top of that, clustering groups similar images and label validation catches mislabeled samples.",
       "outcome": "",
       "tags": ["Python", "OpenCV", "Pillow", "NumPy", "Pytest", "clustering", "label validation"],
-      "link": "https://github.com/namannsinha",
+      "link": "https://github.com/namannsinha/AI-Dataset-Doctor",
       "demo": ""
     },
     {
@@ -27,7 +27,7 @@
       "hard": "Telling the parts of a page apart, such as text, figures and tables, and getting accuracy up through annotated training data and hyperparameter tuning.",
       "outcome": "",
       "tags": ["TensorFlow", "CNN", "OpenCV"],
-      "link": "https://github.com/namannsinha",
+      "link": "https://github.com/namannsinha/Document-Layout-Recognition",
       "demo": ""
     },
     {
@@ -37,7 +37,7 @@
       "hard": "Handling GO-separated batches, complex DDL, and SQL Server’s rule that CREATE DATABASE can’t run inside a transaction.",
       "outcome": "Every deployment (script, timestamp, duration, status, errors) lands in a central audit table, which replaced manual deployments nobody could trace.",
       "tags": ["Python", "SQL Server", "pyodbc"],
-      "link": "https://github.com/namannsinha",
+      "link": "https://github.com/namannsinha/Database-Deployment-Automation-Framework",
       "demo": ""
     }
   ]
