@@ -169,6 +169,18 @@ footer a{color:var(--mut);margin-left:16px}footer a:hover{color:var(--acc)}
 .repo{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:.95rem}
 .repo a{text-decoration:none;font-weight:600}.repo a:hover{color:var(--acc)}
 .repo span{font:400 .72rem var(--mono);color:var(--mut);text-align:right}
+.lc-heatmap{margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
+.lc-heat-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.lc-heat-head strong{font:400 1.2rem var(--serif)}
+.lc-heat-head span,.lc-heat-foot{font:400 .68rem var(--mono);color:var(--mut)}
+.lc-heat-scroll{overflow-x:auto;padding-bottom:5px}
+.lc-heat-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,11px);grid-auto-columns:11px;gap:4px;width:max-content;min-width:100%}
+.lc-day{width:11px;height:11px;border-radius:2px;background:#292824;border:1px solid #35342f}
+.lc-day[data-level="1"]{background:#79402f;border-color:#79402f}
+.lc-day[data-level="2"]{background:#b94e30;border-color:#b94e30}
+.lc-day[data-level="3"]{background:#e9633b;border-color:#e9633b}
+.lc-day[data-level="4"]{background:#ff8a60;border-color:#ff8a60}
+.lc-heat-foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px}
 @media (max-width:900px){.ag{grid-template-columns:1fr}}
 </style>
 </head>
@@ -337,11 +349,20 @@ footer a{color:var(--mut);margin-left:16px}footer a:hover{color:var(--acc)}
     try{localStorage.setItem("gh",JSON.stringify({t:Date.now(),u:a[0],r:a[1]}))}catch(e){}showGH(a[0],a[1]);
   }).catch(function(){$("ghbox").lastChild.textContent="Live GitHub data is unavailable right now. Visit github.com/"+GH+" directly."});
 
-  /* LeetCode, from data/leetcode.json (refreshed daily by the GitHub Action) */
+  /* LeetCode stats + recent submission heatmap, refreshed by GitHub Actions */
   fetch("data/leetcode.json",{cache:"no-cache"}).then(ok).then(function(d){
-    var h='<h3>LeetCode</h3><span class="src">'+(d.updated?"updated "+ago(d.updated):"seed values from my resume")+'</span><div class="nums"><div><b>'+(d.rating||"–")+'</b><span>contest rating</span></div><div><b>'+(d.topPercentage?"Top "+d.topPercentage+"%":"–")+'</b><span>global ranking</span></div><div><b>'+(d.contests!=null?d.contests:"–")+'</b><span>contests</span></div></div>';
-    if(d.solved){var m=Math.max(d.solved.easy||0,d.solved.medium||0,d.solved.hard||0)||1;h+=["easy","medium","hard"].map(function(k){return '<div class="br"><span>'+k+'</span><i style="width:'+Math.max(2,(d.solved[k]||0)/m*100*3)+'%;max-width:100%"></i><span>'+(d.solved[k]||0)+'</span></div>'}).join("");h+='<p class="err" style="margin-top:12px">'+d.solved.all+' problems solved</p>'}
-    $("lcbox").innerHTML=h;if(d.rating)$("lcm").textContent=d.rating;
+    var rating=d.rating==null?"–":Math.floor(Number(d.rating));
+    var top=d.topPercentage==null?"–":"Top "+Number(d.topPercentage).toFixed(2)+"%";
+    var h='<h3>LeetCode</h3><span class="src">'+(d.updated?"updated "+ago(d.updated):"statistics not updated yet")+'</span><div class="nums"><div><b>'+rating+'</b><span>contest rating</span></div><div><b>'+top+'</b><span>global ranking</span></div><div><b>'+(d.contests!=null?d.contests:"–")+'</b><span>contests</span></div></div>';
+    if(d.solved){var m=Math.max(d.solved.easy||0,d.solved.medium||0,d.solved.hard||0)||1;h+=["easy","medium","hard"].map(function(k){return '<div class="br"><span>'+k+'</span><i style="width:'+Math.max(2,(d.solved[k]||0)/m*100*3)+'%;max-width:100%"></i><span>'+(d.solved[k]||0)+'</span></div>'}).join("");var total=d.solved.all!=null?d.solved.all:(d.solved.easy||0)+(d.solved.medium||0)+(d.solved.hard||0);h+='<p class="err" style="margin-top:12px">'+total+' problems solved</p>'}
+    var activity=d.activity||{};
+    h+='<div class="lc-heatmap"><div class="lc-heat-head"><strong>Submission activity</strong><span>Last 3 months</span></div><div class="lc-heat-scroll"><div class="lc-heat-grid" id="lcHeatGrid" role="img" aria-label="LeetCode daily submissions over the last three months"></div></div><div class="lc-heat-foot"><span id="lcHeatSummary">Daily submissions</span><span>Less ▪ ▪ ▪ ▪ More</span></div></div>';
+    $("lcbox").innerHTML=h;if(d.rating!=null)$("lcm").textContent=Math.floor(Number(d.rating));
+    var grid=$("lcHeatGrid"),days=90,max=0,totalSubs=0,entries=[],today=new Date();today.setHours(0,0,0,0);
+    for(var i=days-1;i>=0;i--){var day=new Date(today);day.setDate(today.getDate()-i);var key=day.getFullYear()+"-"+String(day.getMonth()+1).padStart(2,"0")+"-"+String(day.getDate()).padStart(2,"0");var count=Number(activity[key]||0);entries.push({key:key,count:count});max=Math.max(max,count);totalSubs+=count}
+    grid.innerHTML=entries.map(function(e){var level=e.count===0?0:max===0?0:e.count/max>=.75?4:e.count/max>=.5?3:e.count/max>=.25?2:1;return '<span class="lc-day" data-level="'+level+'" title="'+e.key+': '+e.count+' submission'+(e.count===1?'':'s')+'" aria-label="'+e.key+': '+e.count+' submissions"></span>'}).join("");
+    $("lcHeatSummary").textContent=totalSubs+" submissions in the last 90 days";
+    if(!Object.keys(activity).length)$("lcHeatSummary").textContent="No calendar data yet — rerun the stats workflow";
   }).catch(function(){$("lcbox").lastChild.textContent="LeetCode stats are not available yet."});
 })();
 </script>
