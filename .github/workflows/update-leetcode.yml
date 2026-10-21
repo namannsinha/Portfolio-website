@@ -1,10 +1,9 @@
-
 name: Update LeetCode Stats
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "30 3 * * *"
+    - cron: "30 3 * * *" # 09:00 IST daily
 
 permissions:
   contents: write
@@ -12,12 +11,11 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch LeetCode stats
+      - name: Fetch LeetCode stats and activity calendar
         env:
           LEETCODE_USERNAME: NamanSinha04
         run: |
@@ -25,23 +23,17 @@ jobs:
           import json
           import os
           import urllib.request
-          from datetime import datetime, timezone
+          from datetime import datetime, timezone, timedelta
           from pathlib import Path
 
           username = os.environ["LEETCODE_USERNAME"]
-
           query = """
           query userStats($username: String!) {
             matchedUser(username: $username) {
-              profile {
-                ranking
+              submitStats {
+                acSubmissionNum { difficulty count }
               }
-              submitStats: submitStatsGlobal {
-                acSubmissionNum {
-                  difficulty
-                  count
-                }
-              }
+              userCalendar { submissionCalendar }
             }
             userContestRanking(username: $username) {
               attendedContestsCount
@@ -50,73 +42,50 @@ jobs:
             }
           }
           """
-
-          payload = json.dumps({
-              "query": query,
-              "variables": {"username": username}
-          }).encode()
-
-          request = urllib.request.Request(
-              "https://leetcode.com/graphql",
-              data=payload,
-              headers={
-                  "Content-Type": "application/json",
-                  "Referer": f"https://leetcode.com/u/{username}/",
-                  "User-Agent": "Mozilla/5.0"
-              }
+          payload = json.dumps({"query": query, "variables": {"username": username}}).encode()
+          req = urllib.request.Request(
+              "https://leetcode.com/graphql", data=payload,
+              headers={"Content-Type": "application/json", "Referer": f"https://leetcode.com/u/{username}/", "User-Agent": "Mozilla/5.0"}
           )
-
-          with urllib.request.urlopen(request, timeout=30) as response:
+          with urllib.request.urlopen(req, timeout=30) as response:
               result = json.load(response)
-
           if result.get("errors"):
               raise RuntimeError(result["errors"])
-
           data = result.get("data", {})
           user = data.get("matchedUser")
-          contest = data.get("userContestRanking")
-
           if not user:
-              raise RuntimeError("LeetCode user not found")
-
-          solved_counts = {
-              item["difficulty"].lower(): item["count"]
-              for item in user["submitStats"]["acSubmissionNum"]
-          }
-
-          previous_path = Path("data/leetcode.json")
-          previous = json.loads(previous_path.read_text())
-
-          # Preserve existing values if contest data is unavailable.
-          if contest:
-              rating = contest.get("rating")
-              top_percentage = contest.get("topPercentage")
-              contests = contest.get("attendedContestsCount")
-          else:
-              rating = previous.get("rating")
-              top_percentage = previous.get("topPercentage")
-              contests = previous.get("contests")
-
-          updated = {
+              raise RuntimeError("LeetCode user not found; check username or API response")
+          contest = data.get("userContestRanking") or {}
+          solved = {x["difficulty"].lower(): x["count"] for x in user["submitStats"]["acSubmissionNum"]}
+          solved["all"] = solved.get("all", sum(solved.get(k, 0) for k in ("easy", "medium", "hard")))
+          raw_calendar = (user.get("userCalendar") or {}).get("submissionCalendar") or "{}"
+          calendar = json.loads(raw_calendar) if isinstance(raw_calendar, str) else raw_calendar
+          cutoff = int((datetime.now(timezone.utc) - timedelta(days=92)).timestamp())
+          activity = {}
+          for timestamp, count in calendar.items():
+              try:
+                  ts = int(timestamp)
+                  if ts >= cutoff:
+                      day = datetime.fromtimestamp(ts, timezone.utc).date().isoformat()
+                      activity[day] = activity.get(day, 0) + int(count)
+              except (ValueError, TypeError, OSError):
+                  continue
+          out = {
               "updated": datetime.now(timezone.utc).isoformat(),
-              "rating": rating,
-              "topPercentage": top_percentage,
-              "contests": contests,
-              "solved": solved_counts
+              "rating": int(float(contest["rating"])) if contest.get("rating") is not None else None,
+              "topPercentage": round(float(contest["topPercentage"]), 2) if contest.get("topPercentage") is not None else None,
+              "contests": contest.get("attendedContestsCount"),
+              "solved": solved,
+              "activity": activity,
           }
-
-          previous_path.write_text(
-              json.dumps(updated, indent=2) + "\n"
-          )
-
-          print(json.dumps(updated, indent=2))
+          Path("data/leetcode.json").write_text(json.dumps(out, indent=2) + "\n")
+          print(json.dumps({"updated": out["updated"], "solved": solved, "activity_days": len(activity)}, indent=2))
           PY
 
       - name: Commit updated statistics
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email \
-            "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/leetcode.json
           if git diff --cached --quiet; then
             echo "Statistics have not changed."
