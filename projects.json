@@ -1,0 +1,44 @@
+{
+  "projects": [
+    {
+      "title": "Fault-Tolerant Distributed Job Queue",
+      "sim": "queue",
+      "did": "Designed and built the queue, the worker pool, the retry logic and a monitoring dashboard.",
+      "hard": "Keeping jobs moving when things break: retries with exponential backoff, and a dead-letter path for jobs that keep failing.",
+      "outcome": "50 jobs/sec at 97% success under simulated failures and burst traffic. The dashboard tracks throughput, p95 latency, failure rate and queue depth.",
+      "tags": ["Python", "Redis", "Flask"],
+      "link": "https://github.com/namannsinha",
+      "demo": ""
+    },
+    {
+      "title": "AI Dataset Doctor",
+      "sim": "audit",
+      "did": "Built a modular pipeline that audits and cleans image datasets, with configurable batch processing. Beyond the basic checks, it clusters similar images and validates labels.",
+      "hard": "Spotting corrupted files, duplicates, blur and low-resolution images, then quarantining them without destroying anything. On top of that, clustering groups similar images and label validation catches mislabeled samples.",
+      "outcome": "",
+      "tags": ["Python", "OpenCV", "Pillow", "NumPy", "Pytest", "clustering", "label validation"],
+      "link": "https://github.com/namannsinha",
+      "demo": ""
+    },
+    {
+      "title": "Document Layout Recognition",
+      "sim": "segment",
+      "did": "Implemented CNN-based layout analysis in TensorFlow for multi-class structural segmentation.",
+      "hard": "Telling the parts of a page apart, such as text, figures and tables, and getting accuracy up through annotated training data and hyperparameter tuning.",
+      "outcome": "",
+      "tags": ["TensorFlow", "CNN", "OpenCV"],
+      "link": "https://github.com/namannsinha",
+      "demo": ""
+    },
+    {
+      "title": "Database Deployment Automation",
+      "sim": "deploy",
+      "did": "Built a Python framework that automates SQL DDL execution on SQL Server.",
+      "hard": "Handling GO-separated batches, complex DDL, and SQL Server’s rule that CREATE DATABASE can’t run inside a transaction.",
+      "outcome": "Every deployment (script, timestamp, duration, status, errors) lands in a central audit table, which replaced manual deployments nobody could trace.",
+      "tags": ["Python", "SQL Server", "pyodbc"],
+      "link": "https://github.com/namannsinha",
+      "demo": ""
+    }
+  ]
+}

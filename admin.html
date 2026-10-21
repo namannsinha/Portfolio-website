@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Portfolio editor</title>
+<style>
+body{margin:0;background:#141413;color:#F3EFE6;font:16px/1.5 system-ui,sans-serif;padding:24px;max-width:860px;margin:auto}
+h1{font-weight:500}fieldset{border:1px solid #2f2e2a;border-radius:4px;margin:0 0 18px;padding:16px;background:#1b1b19}
+legend{color:#FF6A3D;padding:0 8px}label{display:block;font-size:.8rem;color:#A9A499;margin:10px 0 3px}
+input,textarea,select{width:100%;background:#141413;color:#F3EFE6;border:1px solid #2f2e2a;border-radius:3px;padding:8px;font:inherit}
+textarea{min-height:64px}button{background:none;color:#F3EFE6;border:1px solid #F3EFE6;border-radius:3px;padding:8px 14px;cursor:pointer;margin:4px 6px 0 0;font:inherit}
+button.p{background:#FF6A3D;border-color:#FF6A3D;color:#16100D}.note{color:#A9A499;font-size:.9rem}
+</style></head><body>
+<h1>Portfolio editor</h1>
+<p class="note">Edit your projects below, then press <b>Download projects.json</b> and replace the file of the same name in your GitHub repository. Nothing is saved until you do that.</p>
+<div><button class="p" id="add">Add project</button> <button class="p" id="dl">Download projects.json</button> <label style="display:inline">or open a file: <input type="file" id="open" accept=".json" style="width:auto"></label></div>
+<div id="list" style="margin-top:20px"></div>
+<script src="sims.js"></script>
+<script>
+var data={projects:[]},list=document.getElementById("list");
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;")}
+function draw(){
+  var opts='<option value="">No visual</option>'+Object.keys(SIMS).map(function(k){return '<option value="'+k+'">'+SIMS[k].label+'</option>'}).join("");
+  list.innerHTML=data.projects.map(function(p,i){
+    function f(l,k,ta){return '<label>'+l+'</label>'+(ta?'<textarea data-i="'+i+'" data-f="'+k+'">'+esc(p[k])+'</textarea>':'<input data-i="'+i+'" data-f="'+k+'" value="'+esc(k==="tags"?(p.tags||[]).join(", "):p[k])+'">')}
+    return '<fieldset><legend>Project '+(i+1)+'</legend>'+f("Title","title")+f("What I did","did",1)+f("The hard part","hard",1)+f("Outcome (optional)","outcome",1)+f("Tech tags, separated by commas","tags")+
+      f("Source code link","link")+f("Live demo link (optional)","demo")+'<label>Interactive visual</label><select data-i="'+i+'" data-f="sim">'+opts.replace('value="'+(p.sim||"")+'"','value="'+(p.sim||"")+'" selected')+'</select>'+
+      f("Or a screenshot path, e.g. images/my-project.png (used when no visual is chosen)","image")+
+      '<div><button data-m="up" data-i="'+i+'">Move up</button><button data-m="down" data-i="'+i+'">Move down</button><button data-m="del" data-i="'+i+'">Delete</button></div></fieldset>'}).join("");
+}
+list.addEventListener("input",function(e){var t=e.target,i=t.dataset.i,k=t.dataset.f;if(i==null)return;data.projects[i][k]=k==="tags"?t.value.split(",").map(function(s){return s.trim()}).filter(Boolean):t.value});
+list.addEventListener("click",function(e){var m=e.target.dataset.m,i=+e.target.dataset.i,a=data.projects;if(!m)return;
+  if(m==="del"&&confirm("Delete this project?"))a.splice(i,1);
+  if(m==="up"&&i>0)a.splice(i-1,0,a.splice(i,1)[0]);
+  if(m==="down"&&i<a.length-1)a.splice(i+1,0,a.splice(i,1)[0]);draw()});
+document.getElementById("add").onclick=function(){data.projects.push({title:"New project",sim:"",did:"",hard:"",outcome:"",tags:[],link:"",demo:"",image:""});draw();window.scrollTo(0,document.body.scrollHeight)};
+document.getElementById("dl").onclick=function(){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));a.download="projects.json";a.click()};
+document.getElementById("open").onchange=function(e){var r=new FileReader();r.onload=function(){data=JSON.parse(r.result);draw()};r.readAsText(e.target.files[0])};
+fetch("projects.json").then(function(r){return r.json()}).then(function(d){data=d;draw()}).catch(function(){draw()});
+</script></body></html>
