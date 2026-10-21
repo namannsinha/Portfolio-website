@@ -1,0 +1,126 @@
+
+name: Update LeetCode Stats
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 3 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch LeetCode stats
+        env:
+          LEETCODE_USERNAME: NamanSinha04
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          username = os.environ["LEETCODE_USERNAME"]
+
+          query = """
+          query userStats($username: String!) {
+            matchedUser(username: $username) {
+              profile {
+                ranking
+              }
+              submitStats: submitStatsGlobal {
+                acSubmissionNum {
+                  difficulty
+                  count
+                }
+              }
+            }
+            userContestRanking(username: $username) {
+              attendedContestsCount
+              rating
+              topPercentage
+            }
+          }
+          """
+
+          payload = json.dumps({
+              "query": query,
+              "variables": {"username": username}
+          }).encode()
+
+          request = urllib.request.Request(
+              "https://leetcode.com/graphql",
+              data=payload,
+              headers={
+                  "Content-Type": "application/json",
+                  "Referer": f"https://leetcode.com/u/{username}/",
+                  "User-Agent": "Mozilla/5.0"
+              }
+          )
+
+          with urllib.request.urlopen(request, timeout=30) as response:
+              result = json.load(response)
+
+          if result.get("errors"):
+              raise RuntimeError(result["errors"])
+
+          data = result.get("data", {})
+          user = data.get("matchedUser")
+          contest = data.get("userContestRanking")
+
+          if not user:
+              raise RuntimeError("LeetCode user not found")
+
+          solved_counts = {
+              item["difficulty"].lower(): item["count"]
+              for item in user["submitStats"]["acSubmissionNum"]
+          }
+
+          previous_path = Path("data/leetcode.json")
+          previous = json.loads(previous_path.read_text())
+
+          # Preserve existing values if contest data is unavailable.
+          if contest:
+              rating = contest.get("rating")
+              top_percentage = contest.get("topPercentage")
+              contests = contest.get("attendedContestsCount")
+          else:
+              rating = previous.get("rating")
+              top_percentage = previous.get("topPercentage")
+              contests = previous.get("contests")
+
+          updated = {
+              "updated": datetime.now(timezone.utc).isoformat(),
+              "rating": rating,
+              "topPercentage": top_percentage,
+              "contests": contests,
+              "solved": solved_counts
+          }
+
+          previous_path.write_text(
+              json.dumps(updated, indent=2) + "\n"
+          )
+
+          print(json.dumps(updated, indent=2))
+          PY
+
+      - name: Commit updated statistics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/leetcode.json
+          if git diff --cached --quiet; then
+            echo "Statistics have not changed."
+          else
+            git commit -m "Update LeetCode statistics"
+            git push
+          fi
